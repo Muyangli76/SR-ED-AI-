@@ -1,19 +1,30 @@
 import streamlit as st
-from ocr import extract_text_from_pdf
+import os
 import pandas as pd
-from io import BytesIO
 import docx
 import openpyxl
+from io import BytesIO
+from dotenv import load_dotenv
+from azure.storage.blob import BlobServiceClient
+from ocr import extract_text_from_pdf
 from embedder import process_text_to_faiss, query_faiss_index
+from pathlib import Path
 
+# Load environment variables
+env_path = Path(__file__).resolve().parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
+conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+blob_service_client = BlobServiceClient.from_connection_string(conn_str)
+container_name = "raw-documents"
 
 def extract_text_from_docx(file):
     doc = docx.Document(file)
-    fullText = []
-    for para in doc.paragraphs:
-        fullText.append(para.text)
-    return "\n".join(fullText)
+    return "\n".join([para.text for para in doc.paragraphs])
 
+def upload_to_azure(file, filename):
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=filename)
+    blob_client.upload_blob(file, overwrite=True)
+    st.success(f"✅ Uploaded to Azure Blob Storage: `{filename}`")
 
 def main():
     st.title("📂 Upload your Files for SR&ED AI Tool")
@@ -31,6 +42,9 @@ def main():
         for uploaded_file in uploaded_files:
             st.write(f"- {uploaded_file.name} ({uploaded_file.type}, {uploaded_file.size} bytes)")
             filename = uploaded_file.name.lower()
+
+            # Upload to Azure
+            upload_to_azure(uploaded_file, filename)
 
             if filename.endswith(".csv"):
                 df = pd.read_csv(uploaded_file)
@@ -61,17 +75,15 @@ def main():
 
             elif filename.endswith(".mp3") or filename.endswith(".wav"):
                 st.write("Audio file uploaded — ready for transcription.")
-                # Add your audio transcription logic here
+                # Add audio transcription here
 
             else:
                 st.write("Unsupported file type.")
 
-        # Process all extracted text into FAISS index if any text extracted
         if all_extracted_text.strip():
             st.write("Embedding all extracted text into FAISS index...")
             process_text_to_faiss(all_extracted_text, index_path="data/faiss_index")
 
-    # Query input
     query = st.text_input("Ask a question:")
     if query:
         try:

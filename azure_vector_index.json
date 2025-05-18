@@ -1,0 +1,32 @@
+{
+  "name": "documents-vector-index",
+  "fields": [
+    {
+      "name": "id",
+      "type": "Edm.String",
+      "key": true,
+      "searchable": false
+    },
+    {
+      "name": "content",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false
+    },
+    {
+      "name": "embedding",
+      "type": "Collection(Edm.Single)",
+      "vectorSearchConfiguration": "vector-profile-sred"
+    },
+    {
+      "name": "source_filename",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": false
+    }
+  ]
+}
